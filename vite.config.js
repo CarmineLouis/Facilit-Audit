@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 
-// Configuração vital para que o GitHub Pages encontre o CSS e JS na subpasta /Facilit-Audit/
 export default defineConfig({
+  // Isso garante que o site funcione em carminelouis.github.io/Facilit-Audit/
   base: '/Facilit-Audit/', 
   build: {
-    outDir: 'dist',
+    // Garante que o arquivo gerado não perca as referências de estilo
+    assetsDir: 'assets',
   }
 })
