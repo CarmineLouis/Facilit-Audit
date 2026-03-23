@@ -3,51 +3,85 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Carmine · Portfolio</title>
+    <title>Facilit Audit · Inteligência em Auditoria</title>
     <link rel="stylesheet" href="/style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+      import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyBgUpDj5Qx3L_uWBu1pkLEz1zgf5fqk6lQ", 
+        authDomain: "facilit-audit-web-9a942.firebaseapp.com",
+        projectId: "facilit-audit-web-9a942",
+        storageBucket: "facilit-audit-web-9a942.firebasestorage.app",
+        messagingSenderId: "997429943748",
+        appId: "1:997429943748:web:324269bc6d361aebd85891",
+        measurementId: "G-EG69H6GY9Y"
+      };
+
+      window.fbMethods = { ready: false };
+
+      async function initFacilitAudit() {
+        try {
+          const app = initializeApp(firebaseConfig);
+          const db = getFirestore(app);
+
+          window.fbMethods = { 
+            collection, 
+            addDoc, 
+            db, 
+            apiKey: firebaseConfig.apiKey, 
+            ready: true 
+          };
+          console.log("🚀 FACILIT AUDIT: Cloud Conectado");
+        } catch (e) {
+          console.error("Erro Firebase:", e);
+        }
+      }
+      initFacilitAudit();
+    </script>
   </head>
   <body>
-    <!-- Canvas de fundo (réptil) -->
     <canvas id="bg"></canvas>
 
-    <!-- Tela HOME: card com o menu central -->
     <div id="home-overlay" class="overlay fade-in">
       <div class="menu-box">
-        <h1 class="menu-title">Seja Bem-Vindo</h1>
+        <h1 class="menu-title">Facilit Audit</h1>
         <nav class="center-menu">
-          <a class="menu-btn" data-nav="home">Home</a>
-          <a class="menu-btn" data-nav="portfolio">Portfólio</a>
-          <a class="menu-btn" data-nav="contact">Contato</a>
+          <a class="menu-btn" data-nav="audit-tool">Leitura de Extrato</a>
         </nav>
       </div>
-      <p class="hint">mova o mouse — clique para mudar a cor</p>
+      <p class="hint">Clique com o botão esquerdo para mudar a cor da centopeia.</p>
     </div>
 
-    <!-- “Páginas” (SPA) -->
-    <section id="portfolio" class="page hidden">
+    <section id="audit-tool" class="page hidden">
       <header class="topbar">
         <a class="toplink" data-nav="home">← Home</a>
-        <h1>Portfólio</h1>
+        <h1 class="menu-title" style="margin:0; letter-spacing: 4px; font-size: 0.8rem;">Tratamento de Saldos</h1>
       </header>
-      <div class="content">
-        <p>Currículo</p>
-        <b>Carmine Louis Carneiro</b>
-        <b> Profissional com experiência em Customer Experience (CX), Customer Success (CS) e Gestão de Equipes, especializado na criação de estratégias para engajamento e retenção de clientes, otimização de processos operacionais e análise de indicadores de desempenho (KPIs). Atuação orientada por Data Analytics e Business Intelligence (BI), com expertise em desenvolvimento de dashboards, relatórios estratégicos e automação de processos para suportar tomadas de decisão data-driven. Experiência em CRM (Salesforce), SQL, Python, R Language e Power BI. Reconhecido por liderança em times multidisciplinares, resolução de conflitos e planejamento estratégico.</b>
-           
+      
+      <div class="content fade-in">
+        <p class="lead">Upload de Extratos para Conciliação Bancária</p>
+        
+        <div id="drop-zone" class="drop-zone">
+          <span class="drop-zone__prompt" style="font-size: 0.7rem; letter-spacing: 2px; opacity: 0.6;">
+            ARRASTE O EXTRATO OU CLIQUE PARA UPLOAD
+          </span>
+          <input type="file" name="myFile" class="drop-zone__input" accept=".csv, .xlsx, .xls, .pdf">
+        </div>
 
+        <div id="audit-status" class="hidden">
+          <div class="loader"></div>
+          <p id="status-text" style="font-size: 0.65rem; letter-spacing: 2px; text-align: center; opacity: 0.7;">
+            MAPEANDO DADOS...
+          </p>
+        </div>
       </div>
     </section>
 
-    <section id="contact" class="page hidden">
-      <header class="topbar">
-        <a class="toplink" data-nav="home">← Home</a>
-        <h1>Contato</h1>
-      </header>
-      <div class="content">
-        <p>Envie um e-mail: <a href="mailto:carminelouis.carneiro@gmail.com">carminelouis.carneiro@gmail.com</a></p>
-      </div>
-    </section>
-
-    <script type="module" src="/src/main.js"></script>
+    <script src="/src/main.js"></script>
   </body>
 </html>

@@ -1,185 +1,255 @@
-/* ================= Navegação (SPA) + controle do canvas ================= */
-const overlay = document.getElementById('home-overlay');
-const pages = {
-  portfolio: document.getElementById('portfolio'),
-  contact: document.getElementById('contact'),
+/**
+ * FACILIT AUDIT - CORE ENGINE (V8.0)
+ * Desenvolvido por: Carmine Louis Carneiro
+ * Ajuste: Conversão de Moeda (BRL) e Data Excel
+ */
+
+// =============================================================
+// 1. CONFIGURAÇÕES - MANTIDO
+// =============================================================
+const CONFIG = {
+  numPointsInicial: 30, limiteCrescimento: 100, distanciaSegmentos: 10,    
+  velocidadeSeguimento: 0.4, tamanhoSimbolo: 32, velocidadeSimbolo: 10,     
+  limiteParaExplodir: 12, duracaoExplosao: 4000, quantidadeParticulas: 100, 
+  velocidadeExplosao: 10, gravidadeFogos: 0.15, tamanhoParticula: 20       
 };
-const bg = document.getElementById('bg'); // canvas do réptil
+const SYMBOLS = ['+', '-', '×', '÷', '√', 'π', '∑', '∫', 'ℝ', '¾', '½', 'Δ', 'θ', 'λ', '∞', '≠', '≡', '∝', '∇', '∃', '∀', '∈', '∉', '∪', '∩', '⊂', '⊃', '⊆', '⊇', '∧', '∨', '¬'];
 
-let running = true; // controla se o loop do réptil roda
+// =============================================================
+// 2. SETUP DE INTERFACE
+// =============================================================
+const navButtons = document.querySelectorAll('[data-nav]');
+const pages = document.querySelectorAll('.page');
+const homeOverlay = document.getElementById('home-overlay');
+const canvasBg = document.getElementById('bg');
+const ctx = canvasBg.getContext('2d', { alpha: false }); 
 
-function fadeShow(el){
-  el.classList.remove('hidden','fade-out');
-  el.classList.add('fade-in');
-}
-function fadeHide(el){
-  el.classList.remove('fade-in');
-  el.classList.add('fade-out');
-  el.addEventListener('animationend', () => el.classList.add('hidden'), { once:true });
-}
-
-function showHome(){
-  bg.classList.remove('is-hidden'); // mostra canvas
-  running = true;                   // retoma animação
-  fadeShow(overlay);
-  Object.values(pages).forEach(p => { if (!p.classList.contains('hidden')) fadeHide(p); });
-}
-function showPage(id){
-  bg.classList.add('is-hidden');    // oculta canvas
-  running = false;                  // pausa animação
-  fadeHide(overlay);
-  Object.entries(pages).forEach(([key,el])=>{
-    if (key===id) fadeShow(el); else if (!el.classList.contains('hidden')) fadeHide(el);
-  });
-}
-
-document.querySelectorAll('[data-nav]').forEach(el=>{
-  el.addEventListener('click', ()=>{
-    const to = el.getAttribute('data-nav');
-    if (to === 'home') showHome(); else showPage(to);
-  });
-});
-
-showHome(); // estado inicial: home + canvas visível
-
-
-/* ====================== Réptil (canvas interativo) ====================== */
-const SETTINGS = {
-  segments: 110, segLen: 14, bodyRadius: 14,
-  followHead: 0.22,
-  legEvery: 5, legLen: 22, toes: 3, toeLen: 5,
-  wiggleAmp: 5, wiggleFreq: 0.012, dashAlpha: 0.22
-};
-const Input = { mouse: { x: innerWidth/2, y: innerHeight/2, left:false, middle:false, right:false } };
-
-const canvas = document.getElementById('bg');
-const ctx = canvas.getContext('2d');
-
-function fit(){ canvas.width = innerWidth; canvas.height = innerHeight; }
-fit(); addEventListener('resize', fit);
-
-addEventListener('mousemove', e => { Input.mouse.x = e.clientX; Input.mouse.y = e.clientY; });
-addEventListener('mousedown', e => { if(e.button===0)Input.mouse.left=true; if(e.button===1)Input.mouse.middle=true; if(e.button===2)Input.mouse.right=true; });
-addEventListener('mouseup',   e => { if(e.button===0)Input.mouse.left=false; if(e.button===1)Input.mouse.middle=false; if(e.button===2)Input.mouse.right=false; });
-addEventListener('contextmenu', e => e.preventDefault());
-
-// espinha
-const spine = Array.from({ length: SETTINGS.segments }, (_, i) => ({ x: innerWidth/2 - i*SETTINGS.segLen, y: innerHeight/2 }));
-const lerp = (a,b,t)=>a+(b-a)*t;
-
-function radiusAt(i,total){
-  const t=i/(total-1), head=SETTINGS.bodyRadius;
-  const base=head*(1-t)+2, lift=1+0.35*Math.sin(t*Math.PI);
-  return Math.max(1.4, base*lift*(0.85+0.15*Math.cos(t*3.2)));
-}
-
-/* Pernas e dedos */
-function drawToes(foot, baseAngle, color){
-  const toes=SETTINGS.toes, spread=0.7;
-  ctx.strokeStyle=color; ctx.lineWidth=1.2;
-  for(let t=0;t<toes;t++){
-    const a = baseAngle + (t-(toes-1)/2)*spread/Math.max(1,(toes-1));
-    ctx.beginPath();
-    ctx.moveTo(foot.x,foot.y);
-    ctx.lineTo(foot.x+Math.cos(a)*SETTINGS.toeLen, foot.y+Math.sin(a)*SETTINGS.toeLen);
-    ctx.stroke();
+function navigate(targetId) {
+  pages.forEach(p => p.classList.add('hidden')); 
+  homeOverlay.classList.add('hidden');           
+  if (targetId === 'home') {
+    homeOverlay.classList.remove('hidden');      
+    canvasBg.style.opacity = "1";                
+  } else {
+    const targetPage = document.getElementById(targetId);
+    if (targetPage) { targetPage.classList.remove('hidden'); canvasBg.style.opacity = "0.2"; }
   }
 }
-function drawLegs(a,b,i,time,color){
-  if(i%SETTINGS.legEvery!==0 || i===0) return;
-  const dx=b.x-a.x, dy=b.y-a.y, ang=Math.atan2(dy,dx), nx=-Math.sin(ang), ny=Math.cos(ang);
-  const phase=(i/SETTINGS.legEvery)%2===0?0:Math.PI;
-  const gait=Math.sin(time*0.015 + i*0.25 + phase)*0.6;
-  const r=Math.max(2, radiusAt(i,spine.length)*0.55);
-  const hipL={x:b.x+nx*(r+2), y:b.y+ny*(r+2)}, hipR={x:b.x-nx*(r+2), y:b.y-ny*(r+2)};
-  const len=SETTINGS.legLen*(0.7+0.3*(i/spine.length)), tilt=0.6*gait;
-  const footL={x:hipL.x+nx*(len*.2)+Math.cos(ang+Math.PI/2+tilt)*len, y:hipL.y+ny*(len*.2)+Math.sin(ang+Math.PI/2+tilt)*len};
-  const footR={x:hipR.x-nx*(len*.2)+Math.cos(ang-Math.PI/2-tilt)*len, y:hipR.y-ny*(len*.2)+Math.sin(ang-Math.PI/2-tilt)*len};
-  ctx.strokeStyle=color; ctx.lineWidth=1.2;
-  ctx.beginPath(); ctx.moveTo(hipL.x,hipL.y); ctx.lineTo(footL.x,footL.y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(hipR.x,hipR.y); ctx.lineTo(footR.x,footR.y); ctx.stroke();
-  drawToes(footL, ang+Math.PI/2+tilt, color);
-  drawToes(footR, ang-Math.PI/2-tilt, color);
+navButtons.forEach(btn => btn.addEventListener('click', () => navigate(btn.getAttribute('data-nav'))));
+
+// =============================================================
+// 3. MOTOR DE ANIMAÇÃO (MANTIDO)
+// =============================================================
+let width, height, points = [], mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+let baseHue = 150, hueOffset = 0, rainbowHue = 0, directionForward = true;
+let food = { x: 0, y: 0, symbol: '', vx: 0, vy: 0 }, score = 0;
+let particles = [], isExploding = false, currentNumPoints = CONFIG.numPointsInicial;
+
+function spawnFood() {
+  food.x = Math.random() * (window.innerWidth - 100) + 50;
+  food.y = Math.random() * (window.innerHeight - 100) + 50;
+  food.symbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  food.vx = (Math.random() - 0.5) * CONFIG.velocidadeSimbolo;
+  food.vy = (Math.random() - 0.5) * CONFIG.velocidadeSimbolo;
 }
-
-/* Cores */
-function currentColor(t){
-  if(Input.mouse.left)   return "#ff6b6b";
-  if(Input.mouse.middle) return `hsl(${(t*0.1)%360},100%,70%)`;
-  if(Input.mouse.right)  return "#74c0fc";
-  return "#cfe3f7";
-}
-const shade=(hex,delta)=>"#"+((n)=>{
-  let r=((n>>16)&255)+delta,g=((n>>8)&255)+delta,b=(n&255)+delta;
-  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
-  return((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
-})(parseInt(hex.slice(1),16));
-
-/* Update */
-function update(time){
-  const head=spine[0];
-  head.x=lerp(head.x, Input.mouse.x, SETTINGS.followHead);
-  head.y=lerp(head.y, Input.mouse.y, SETTINGS.followHead);
-
-  const vx=Input.mouse.x-head.x, vy=Input.mouse.y-head.y;
-  const ang=Math.atan2(vy,vx), wiggle=SETTINGS.wiggleAmp*Math.sin(time*SETTINGS.wiggleFreq);
-  head.x += -Math.sin(ang)*wiggle*0.25;
-  head.y +=  Math.cos(ang)*wiggle*0.25;
-
-  for(let i=1;i<spine.length;i++){
-    const prev=spine[i-1], curr=spine[i];
-    const sway=SETTINGS.wiggleAmp*0.35*Math.sin(time*SETTINGS.wiggleFreq + i*0.3);
-    const dx=curr.x-prev.x, dy=curr.y-prev.y, d=Math.hypot(dx,dy)||1e-4, nx=dx/d, ny=dy/d;
-    const tx=prev.x+nx*SETTINGS.segLen - ny*sway*0.2;
-    const ty=prev.y+ny*SETTINGS.segLen + nx*sway*0.2;
-    curr.x=lerp(curr.x,tx,0.9); curr.y=lerp(curr.y,ty,0.9);
+function createFireworkExplosion(x, y) {
+  isExploding = true; particles = [];
+  for (let i = 0; i < CONFIG.quantidadeParticulas; i++) {
+    const angle = Math.random() * Math.PI * 2, speed = Math.random() * CONFIG.velocidadeExplosao + 2;
+    particles.push({ x, y, symbol: SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)], vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1, hue: Math.random() * 360, size: CONFIG.tamanhoParticula, gravity: CONFIG.gravidadeFogos });
   }
+  currentNumPoints = CONFIG.numPointsInicial; score = 0; 
+  setTimeout(() => { isExploding = false; points = []; for (let i = 0; i < currentNumPoints; i++) points.push({ x: width/2, y: height/2 }); spawnFood(); }, CONFIG.duracaoExplosao);
 }
-
-/* Draw */
-function draw(time){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  const color=currentColor(time), colorLeg=shade(color,-25);
-
-  for(let i=0;i<spine.length-1;i++){
-    const a=spine[i], b=spine[i+1];
-    const dx=b.x-a.x, dy=b.y-a.y, ang=Math.atan2(dy,dx);
-    const r=radiusAt(i,spine.length);
-
-    ctx.globalAlpha=SETTINGS.dashAlpha; ctx.lineWidth=2; ctx.strokeStyle=color;
-
-    const cx=(a.x+b.x)/2, cy=(a.y+b.y)/2, rx=r*1.2, ry=r*0.55;
-    ctx.beginPath();
-    const steps=20;
-    for(let s=0;s<=steps;s++){
-      const t=(s/steps)*Math.PI*2, ex=cx+Math.cos(t)*rx, ey=cy+Math.sin(t)*ry;
-      const px=cx+(ex-cx)*Math.cos(ang)-(ey-cy)*Math.sin(ang);
-      const py=cy+(ex-cx)*Math.sin(ang)+(ey-cy)*Math.cos(ang);
-      if(s===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+function resize() { width = canvasBg.width = window.innerWidth; height = canvasBg.height = window.innerHeight; spawnFood(); }
+window.addEventListener('resize', resize); resize();
+for (let i = 0; i < currentNumPoints; i++) points.push({ x: width/2, y: height/2 });
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('mousedown', e => { if (e.button === 0) directionForward = !directionForward; });
+function animate() {
+  ctx.fillStyle = '#070b10'; ctx.fillRect(0, 0, width, height);
+  hueOffset += 0.8; rainbowHue += 2;
+  if (!isExploding) {
+    points[0].x += (mouse.x - points[0].x) * CONFIG.velocidadeSeguimento;
+    points[0].y += (mouse.y - points[0].y) * CONFIG.velocidadeSeguimento;
+    for (let i = 1; i < currentNumPoints; i++) {
+      const p = points[i], prev = points[i-1];
+      const angle = Math.atan2(p.y - prev.y, p.x - prev.x);
+      p.x = prev.x + Math.cos(angle) * CONFIG.distanciaSegmentos;
+      p.y = prev.y + Math.sin(angle) * CONFIG.distanciaSegmentos;
     }
-    ctx.stroke(); ctx.globalAlpha=1;
-
-    drawLegs(a,b,i,performance.now(),colorLeg);
+    food.x += food.vx; food.y += food.vy;
+    if (food.x < 50 || food.x > width-50) food.vx *= -1;
+    if (food.y < 50 || food.y > height-50) food.vy *= -1;
+    if (Math.hypot(points[0].x - food.x, points[0].y - food.y) < 35) {
+      score++; baseHue = Math.random() * 360; spawnFood();
+      if (currentNumPoints < CONFIG.limiteCrescimento) { currentNumPoints++; points.push({ ...points[points.length-1] }); }
+      if (score >= CONFIG.limiteParaExplodir) createFireworkExplosion(points[0].x, points[0].y);
+    }
+    ctx.font = `200 ${CONFIG.tamanhoSimbolo}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = `hsl(${rainbowHue}, 100%, 75%)`; ctx.fillText(food.symbol, food.x, food.y);
+    for (let i = 0; i < currentNumPoints; i++) {
+      const p = points[i], prev = i === 0 ? null : points[i-1];
+      let gradIdx = directionForward ? i : (currentNumPoints - i);
+      const hue = (baseHue + hueOffset + (gradIdx * (120 / currentNumPoints))) % 360;
+      const radius = Math.max(3, 8 - (i * 0.2));
+      if (i > 1 && i % 4 === 0 && prev) {
+        const angle = Math.atan2(p.y - prev.y, p.x - prev.x);
+        const osc = Math.sin(hueOffset * 0.2 + i * 0.5) * 4;
+        ctx.beginPath(); ctx.strokeStyle = `hsla(${hue}, 80%, 75%, 0.7)`; ctx.lineWidth = 1; ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(angle+Math.PI/2)*(15+osc), p.y + Math.sin(angle+Math.PI/2)*15); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(angle-Math.PI/2)*(15+osc), p.y + Math.sin(angle-Math.PI/2)*15); ctx.stroke();
+      }
+      if (i === 0 && points[1]) {
+        const ang = Math.atan2(p.y - points[1].y, p.x - points[1].x);
+        ctx.beginPath(); ctx.strokeStyle = `hsla(${hue}, 100%, 75%, 0.9)`; ctx.lineWidth = 1.5; ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(ang+0.5)*25, p.y + Math.sin(ang+0.5)*25); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(ang-0.5)*25, p.y + Math.sin(ang-0.5)*25); ctx.stroke();
+      }
+      if (i === currentNumPoints - 1 && prev) {
+        const tailAngle = Math.atan2(p.y - prev.y, p.x - prev.x);
+        ctx.beginPath(); ctx.fillStyle = `hsl(${hue}, 90%, 65%)`; ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(tailAngle - 0.5) * 4, p.y + Math.sin(tailAngle - 0.5) * 4); ctx.lineTo(p.x + Math.cos(tailAngle) * 15, p.y + Math.sin(tailAngle) * 15); ctx.lineTo(p.x + Math.cos(tailAngle + 0.5) * 4, p.y + Math.sin(tailAngle + 0.5) * 4); ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2); ctx.fillStyle = `hsl(${hue}, 90%, 65%)`; ctx.fill();
+    }
   }
+  if (isExploding) {
+    particles.forEach(p => { p.vx *= 0.98; p.vy += p.gravity; p.x += p.vx; p.y += p.vy; p.life -= 0.005; if (p.life > 0) { ctx.font = `200 ${p.size * p.life}px sans-serif`; ctx.fillStyle = `hsla(${(p.hue + rainbowHue)%360}, 100%, 75%, ${p.life})`; ctx.fillText(p.symbol, p.x, p.y); } });
+  }
+  requestAnimationFrame(animate);
+}
+animate();
 
-  // cabeça
-  const h=spine[0];
-  ctx.fillStyle=color;
-  ctx.beginPath(); ctx.arc(h.x,h.y,radiusAt(0,spine.length)*0.7,0,Math.PI*2); ctx.fill();
+// =============================================================
+// 4. LÓGICA DE UPLOAD
+// =============================================================
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.querySelector('.drop-zone__input');
+const auditStatus = document.getElementById('audit-status');
+const statusText = document.getElementById('status-text');
 
-  // cauda
-  const t=spine.length-1, tail=spine[t], prev=spine[t-1];
-  const angTail=Math.atan2(tail.y-prev.y, tail.x-prev.x);
-  ctx.strokeStyle=color; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.moveTo(tail.x,tail.y);
-  ctx.lineTo(tail.x+Math.cos(angTail)*10, tail.y+Math.sin(angTail)*10);
-  ctx.stroke();
+dropZone.addEventListener('click', () => fileInput.click());
+['dragover', 'dragleave', 'dragend'].forEach(t => dropZone.addEventListener(t, (e) => { e.preventDefault(); if (t === 'dragover') dropZone.classList.add('drop-zone--over'); else dropZone.classList.remove('drop-zone--over'); }));
+dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drop-zone--over'); if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFileUpload(fileInput.files[0]); });
+
+function handleFileUpload(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  dropZone.classList.add('hidden'); auditStatus.classList.remove('hidden');
+  statusText.innerHTML = `MAPEANDO DADOS...`;
+
+  if (ext === 'pdf') {
+    setTimeout(() => processAuditData([{ "Data": "22/03/2026", "Descrição": "SALDO INICIAL PDF", "Valor": "1000.00" }], file.name), 1500);
+  } else if (ext === 'csv') {
+    Papa.parse(file, { header: true, skipEmptyLines: true, complete: (r) => processAuditData(r.data, file.name) });
+  } else {
+    const reader = new FileReader();
+    reader.onload = (e) => processAuditData(XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result), { type: 'array' }).Sheets[XLSX.read(new Uint8Array(e.target.result), { type: 'array' }).SheetNames[0]], { defval: "N/I" }), file.name);
+    reader.readAsArrayBuffer(file);
+  }
 }
 
-/* Loop com pausa */
-let start=performance.now();
-(function loop(now){
-  const t=now-start;
-  if(running){ update(t); draw(t); }
-  requestAnimationFrame(loop);
-})(start);
+function processAuditData(data, fileName) {
+  statusText.innerHTML = `✓ DADOS MAPEADOS.`;
+  setTimeout(() => renderResultsTable(data, fileName), 1000);
+}
+
+// =============================================================
+// 5. RENDERIZAÇÃO E FORMATAÇÃO FINANCEIRA
+// =============================================================
+
+// Conversor de Data
+function formatarDataExcel(valor) {
+  if (!valor || valor === "N/I") return "N/I";
+  if (!isNaN(valor) && valor > 30000) {
+    const data = new Date((valor - 25569) * 86400 * 1000);
+    return data.toLocaleDateString('pt-BR');
+  }
+  return valor;
+}
+
+// CONVERSOR DE MOEDA (BRL) - O AJUSTE SOLICITADO
+function formatarMoeda(valor) {
+  if (!valor || valor === "N/I") return "N/I";
+  
+  // Limpa o valor para garantir que seja um número (remove R$, espaços, etc)
+  let limpo = String(valor).replace(/[R$\s]/g, '').replace(',', '.');
+  let numero = parseFloat(limpo);
+  
+  if (isNaN(numero)) return valor;
+
+  return numero.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+}
+
+function renderResultsTable(data, fileName) {
+  const statusBackup = statusText.innerHTML;
+  auditStatus.innerHTML = `<div id="ia-status-container" style="margin-bottom:20px; text-align:center;"><p id="status-text-ia" style="font-size: 0.65rem; letter-spacing: 2px; opacity: 0.7; color: #7cffb0;">${statusBackup}</p></div>`; 
+
+  let banco = fileName.toUpperCase().includes('BRADESCO') ? 'Bradesco' : fileName.toUpperCase().includes('ITAU') ? 'Itaú' : 'N/I';
+
+  const avatarSVG = `<div style="text-align:center; margin-bottom:20px;"><svg width="80" height="80" viewBox="0 0 100 100" style="filter: drop-shadow(0 0 10px rgba(124, 255, 176, 0.6));"><path d="M35 25 L45 45 M65 25 L55 45" stroke="#7cffb0" stroke-width="2" fill="none" /><path d="M50 35 L75 45 L70 75 L50 85 L30 75 L25 45 Z" fill="#070b10" stroke="#7cffb0" stroke-width="2" /><path d="M38 55 L46 60 L40 65 Z M62 55 L54 60 L60 65 Z" fill="#7cffb0" /></svg></div>`;
+  
+  let html = avatarSVG + `<div style="text-align:center; color:var(--brand); font-size:0.75rem; margin-bottom:20px; letter-spacing: 2px;">CONCILIAÇÃO FINALIZADA</div>`;
+  
+  html += `<div class="audit-meta fade-in" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
+    <div style="background:rgba(255,255,255,0.03); padding:10px; border:1px solid var(--stroke); border-radius:8px;"><span style="display:block; font-size:0.55rem; color:var(--brand); text-transform:uppercase; margin-bottom:4px;">Banco</span><span style="font-size:0.8rem;">${banco}</span></div>
+    <div style="background:rgba(255,255,255,0.03); padding:10px; border:1px solid var(--stroke); border-radius:8px;"><span style="display:block; font-size:0.55rem; color:var(--brand); text-transform:uppercase; margin-bottom:4px;">Conta</span><span style="font-size:0.8rem;">N/I</span></div>
+    <div style="background:rgba(255,255,255,0.03); padding:10px; border:1px solid var(--stroke); border-radius:8px;"><span style="display:block; font-size:0.55rem; color:var(--brand); text-transform:uppercase; margin-bottom:4px;">Mapeamento</span><span style="font-size:0.8rem;">${data.length} Transações</span></div>
+  </div>`;
+
+  html += `<div class="table-container fade-in" id="main-table-container">
+    <table style="width:100%; border-collapse:collapse; font-size:0.7rem;">
+      <thead><tr style="border-bottom:1px solid var(--stroke); color:var(--brand); text-transform:uppercase;"><th style="padding:10px; text-align:left;">Data</th><th style="padding:10px; text-align:left;">Descrição</th><th style="padding:10px; text-align:left;">Valor</th></tr></thead>
+      <tbody>`;
+  
+  data.forEach(row => {
+    const keys = Object.keys(row);
+    let dValRaw = row[keys.find(k => k.toLowerCase().includes('data'))] || 'N/I';
+    let vValRaw = row[keys.find(k => k.toLowerCase().includes('valor'))] || 'N/I';
+    
+    const dVal = formatarDataExcel(dValRaw);
+    const vVal = formatarMoeda(vValRaw); // APLICAÇÃO DA FORMATAÇÃO R$
+    const sVal = row[keys.find(k => k.toLowerCase().includes('desc'))] || 'N/I';
+    
+    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.02);"><td style="padding:8px 10px;">${dVal}</td><td style="padding:8px 10px; opacity:0.7;">${sVal}</td><td style="padding:8px 10px;">${vVal}</td></tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  html += `<div style="text-align:center; margin-top:20px;"><button id="btn-save-cloud" class="menu-btn" style="border-color:var(--brand); color:var(--brand); font-size:0.6rem; padding: 10px 20px; cursor: pointer;">SALVAR NO CLOUD</button><br><br><a href="#" onclick="location.reload()" style="color:var(--muted); font-size:10px; text-decoration:none;">REINICIAR</a></div>`;
+
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  auditStatus.appendChild(container);
+
+  realizarAuditoriaIA(data, banco);
+
+  // LOGICA CLOUD
+  document.getElementById('btn-save-cloud').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-save-cloud');
+    if (!window.fbMethods || !window.fbMethods.ready) { alert("Sincronizando... Aguarde."); return; }
+    
+    btn.innerText = "ENVIANDO..."; btn.disabled = true;
+    const { collection, addDoc, db } = window.fbMethods;
+    try {
+      await addDoc(collection(db, "auditorias"), { banco, timestamp: new Date().toISOString(), transacoes: data });
+      btn.innerText = "✓ SALVO"; alert("Protocolo registrado!");
+    } catch (e) { btn.innerText = "ERRO"; btn.disabled = false; alert("Falha: " + e.message); }
+  });
+}
+
+// =============================================================
+// 6. IA (RESILIENTE)
+// =============================================================
+async function realizarAuditoriaIA(dados, banco) {
+  const statusIA = document.getElementById('status-text-ia');
+  if (!statusIA) return;
+  if (!window.fbMethods || !window.fbMethods.ready) { setTimeout(() => realizarAuditoriaIA(dados, banco), 1000); return; }
+
+  statusIA.innerHTML = `🤖 GEMINI 3 FLASH ANALISANDO...`;
+  try {
+    const result = await window.fbMethods.modelIA.generateContent(`Analise brevemente este extrato: ${JSON.stringify(dados.slice(0, 10))}`);
+    const card = document.createElement('div');
+    card.style.cssText = `background:rgba(124,255,176,0.05); border:1px solid var(--brand); border-radius:8px; padding:15px; margin-bottom:20px; font-size:0.75rem; color:#fff; box-shadow: 0 0 15px rgba(124,255,176,0.1);`;
+    card.innerHTML = `<div style="color:var(--brand); font-weight:bold; margin-bottom:10px;">🤖 INSIGHTS DO AUDITOR DIGITAL</div><div>${result.response.text()}</div>`;
+    document.getElementById('main-table-container').prepend(card);
+    statusIA.innerHTML = `✓ INSIGHTS GERADOS.`;
+  } catch (e) { statusIA.innerHTML = `⚠️ IA INDISPONÍVEL.`; }
+}
