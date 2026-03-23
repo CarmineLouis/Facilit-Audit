@@ -1,8 +1,11 @@
+
+
 {
   "name": "facilitaudit",
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "base": "/Facilit-Audit/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
