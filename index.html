@@ -8,48 +8,43 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-      import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-      // IMPORTAÇÃO DA IA:
-      import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-vertexai.js";
+    <script>
+      const AI_STUDIO_KEY = "AIzaSyADBDhFYpy0RbGzPLf9rvLkjyuP6FSpgRI";
 
-      const firebaseConfig = {
-        apiKey: "AIzaSyBgUpDj5Qx3L_uWBu1pkLEz1zgf5fqk6lQ", 
-        authDomain: "facilit-audit-web-9a942.firebaseapp.com",
-        projectId: "facilit-audit-web-9a942",
-        storageBucket: "facilit-audit-web-9a942.firebasestorage.app",
-        messagingSenderId: "997429943748",
-        appId: "1:997429943748:web:324269bc6d361aebd85891",
-        measurementId: "G-EG69H6GY9Y"
-      };
+      // Configuração global para o seu main.js consumir
+      window.fbMethods = { 
+        ready: true,
+        apiKey: AI_STUDIO_KEY,
+        modelIA: {
+          generateContent: async (prompt) => {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${AI_STUDIO_KEY}`;
+            
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+              })
+            });
 
-      window.fbMethods = { ready: false };
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.error("Erro na IA:", errorData);
+              throw new Error('Erro na chamada da IA');
+            }
 
-      async function initFacilitAudit() {
-        try {
-          const app = initializeApp(firebaseConfig);
-          const db = getFirestore(app);
-          
-          // ATIVANDO O MODELO GEMINI:
-          const vertexAI = getVertexAI(app);
-          const modelIA = getGenerativeModel(vertexAI, { model: "gemini-1.5-flash" });
-
-          window.fbMethods = { 
-            collection, 
-            addDoc, 
-            db, 
-            modelIA, // Agora o main.js vai encontrar o que precisa
-            apiKey: firebaseConfig.apiKey, 
-            ready: true 
-          };
-          console.log("🚀 FACILIT AUDIT: Cloud & IA Conectados");
-        } catch (e) {
-          console.error("Erro Firebase/IA:", e);
+            const data = await response.json();
+            
+            // Retorna o formato exato que o seu main.js espera (objeto com método text())
+            return {
+              response: {
+                text: () => data.candidates[0].content.parts[0].text
+              }
+            };
+          }
         }
-      }
-      initFacilitAudit();
-
+      };
+      console.log("🚀 FACILIT AUDIT: Motor AI Studio Conectado");
     </script>
   </head>
   <body>
@@ -79,7 +74,7 @@
             <span class="drop-zone__prompt" style="font-size: 0.7rem; letter-spacing: 2px; opacity: 0.6;">
               ARRASTE O EXTRATO OU CLIQUE PARA UPLOAD
             </span>
-            <a href="https://raw.githubusercontent.com/CarmineLouis/Facilit-Audit/main/public/modelo_auditoria.xlsx" 
+            <a href="./modelo_auditoria.xlsx" 
                download 
                class="menu-btn" 
                style="font-size: 0.5rem; padding: 5px 15px; width: fit-content; border-color: rgba(124, 255, 176, 0.3); pointer-events: auto;">
