@@ -5,49 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Facilit Audit · Inteligência em Auditoria</title>
     <link rel="stylesheet" href="./style.css">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <script>
+      // Esta chave é autossuficiente. Ela não depende do faturamento do Cloud nem do Plano Blaze do Firebase.
       const AI_STUDIO_KEY = "AIzaSyADBDhFYpy0RbGzPLf9rvLkjyuP6FSpgRI";
 
-      // Configuração global para o seu main.js consumir
       window.fbMethods = { 
         ready: true,
         apiKey: AI_STUDIO_KEY,
         modelIA: {
-          generateContent: async (prompt) => {
-            // URL configurada para a versão v1beta do Gemini 1.5 Flash
+          generateContent: async (promptText) => {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${AI_STUDIO_KEY}`;
             
-            const response = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                // Ajuste na estrutura JSON para compatibilidade total com AI Studio
-                contents: [{ 
-                  parts: [{ text: prompt }] 
-                }]
-              })
-            });
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{ text: promptText }]
+                  }]
+                })
+              });
 
-            const data = await response.json();
+              const data = await response.json();
 
-            if (!response.ok) {
-              console.error("Erro detalhado na IA:", data);
-              throw new Error(data.error?.message || 'Erro na chamada da IA');
-            }
-            
-            // Retorna o formato que o seu main.js espera (objeto com método text())
-            return {
-              response: {
-                text: () => data.candidates[0].content.parts[0].text
+              if (!response.ok) {
+                console.error("❌ Erro na API Gemini:", data);
+                throw new Error(data.error?.message || 'Falha na comunicação com a IA');
               }
-            };
+              
+              // Retorna exatamente o que o seu main.js espera consumir
+              return {
+                response: {
+                  text: () => data.candidates[0].content.parts[0].text
+                }
+              };
+            } catch (error) {
+              console.error("❌ Erro Crítico no Motor de IA:", error);
+              throw error;
+            }
           }
         }
       };
-      console.log("🚀 FACILIT AUDIT: Motor AI Studio Corrigido");
+      console.log("🚀 FACILIT AUDIT: Motor de IA Independente Conectado");
     </script>
   </head>
   <body>
