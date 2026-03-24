@@ -17,25 +17,28 @@
         apiKey: AI_STUDIO_KEY,
         modelIA: {
           generateContent: async (prompt) => {
+            // URL configurada para a versão v1beta do Gemini 1.5 Flash
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${AI_STUDIO_KEY}`;
             
             const response = await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
+                // Ajuste na estrutura JSON para compatibilidade total com AI Studio
+                contents: [{ 
+                  parts: [{ text: prompt }] 
+                }]
               })
             });
 
-            if (!response.ok) {
-              const errorData = await response.json();
-              console.error("Erro na IA:", errorData);
-              throw new Error('Erro na chamada da IA');
-            }
-
             const data = await response.json();
+
+            if (!response.ok) {
+              console.error("Erro detalhado na IA:", data);
+              throw new Error(data.error?.message || 'Erro na chamada da IA');
+            }
             
-            // Retorna o formato exato que o seu main.js espera (objeto com método text())
+            // Retorna o formato que o seu main.js espera (objeto com método text())
             return {
               response: {
                 text: () => data.candidates[0].content.parts[0].text
@@ -44,7 +47,7 @@
           }
         }
       };
-      console.log("🚀 FACILIT AUDIT: Motor AI Studio Conectado");
+      console.log("🚀 FACILIT AUDIT: Motor AI Studio Corrigido");
     </script>
   </head>
   <body>
